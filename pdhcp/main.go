@@ -73,14 +73,12 @@ func (han *DHCPHandler) ServeDHCP(req dhcp.Packet, msg dhcp.MessageType, reqopts
 
 	case dhcp.Discover:
 		reply = getDHCPResponse(han.api, reqnic)
-		reply.MsgType = dhcp.Offer
 
 	case dhcp.Request:
 		if !net.IP(reqopts[dhcp.OptionServerIdentifier]).Equal(han.srv) {
 			return nil // wasn't asking us
 		}
 		reply = getDHCPResponse(han.api, reqnic)
-		reply.MsgType = dhcp.ACK
 
 	default:
 		// includes Release, Decline, Inform msg types
