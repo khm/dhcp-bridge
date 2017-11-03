@@ -50,3 +50,11 @@ DISCOVER packet and smnuggle the answers back along the bridge.
 
 ## begging
 I'm not a programmer.  If you have better code, please send it.
+
+## using
+build pdhcp and qdhcp.  pdhcp acts as your 'dhcp server' and qdhcp acts as
+your 'api server.'  modify qdhcp to match IP addresses, dhcp.Options, etc based
+on mac addresses, or replace it with something else that will make dhcp packet
+structures compatible with kroklaw's dhcp4 library, then serialize them to json
+and send them over http.  run pdhcp as your 'dhcp server' and let it feed
+clients.  enjoy your new life, free of having to keep lying to dnsmasq.
