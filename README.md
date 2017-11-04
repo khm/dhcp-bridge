@@ -58,3 +58,12 @@ on mac addresses, or replace it with something else that will make dhcp packet
 structures compatible with kroklaw's dhcp4 library, then serialize them to json
 and send them over http.  run pdhcp as your 'dhcp server' and let it feed
 clients.  enjoy your new life, free of having to keep lying to dnsmasq.
+
+## dark corners and thought experiments
+run two instances of pdhcp, each pointing to a different upstream api endpoint.
+one can handle DHCP OFFER responses and the other can handle PXE ProxyDHCP responses.
+
+run two PAIRS of pdhcp instances, and get two pairs of identical packets for 
+each DHCP DISCOVER sent.  let a pair die and your service is unaffected.
+
+start eighteen more and be extra safe.
