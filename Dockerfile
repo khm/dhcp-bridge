@@ -2,14 +2,15 @@ FROM golang:1.8.3-alpine
 MAINTAINER Kurt H Maier <khm@pnnl.gov>
 
 COPY . /go/src/khm/dhcp-bridge
-RUN apk add --no-cache --update alpine-sdk; \
-    go get github.com/krolaw/dhcp4;
+RUN apk add --no-cache --update alpine-sdk \
+    && go get github.com/krolaw/dhcp4 \
+    && go get github.com/prometheus/client_golang/prometheus;
 
-RUN cd /go/src/khm/dhcp-bridge; \
-    cd pdhcp; \
-    go build; \
-    cd ../qdhcp; \
-    go build;
+RUN cd /go/src/khm/dhcp-bridge \
+    && cd pdhcp \
+    && go build \
+    && cd ../qdhcp \
+    && go build
 
 FROM alpine:3.4
 
