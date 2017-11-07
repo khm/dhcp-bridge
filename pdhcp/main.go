@@ -2,16 +2,24 @@ package main
 
 import (
 	dhcp "github.com/krolaw/dhcp4"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
+)
+
+var (
+	statsRequests = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "dhcp_requests",
+		Help: "The number of requests processed.",
+	});
 )
 
 // These things are necessary to construct a reply packet.
@@ -24,27 +32,30 @@ type DHCPResponse struct {
 	Options       dhcp.Options     `json:"options"`
 }
 
-func getDHCPResponse(api url.URL, key string) (response DHCPResponse) {
-	var info DHCPResponse
+func getDHCPResponse(api url.URL, key string) (response *DHCPResponse) {
+	var info *DHCPResponse
 
-	apistring := fmt.Sprintf("%s", api)
+	apistring := api.String()
 
 	query := apistring + key
 	log.Println("Requesting", query)
 
 	httpResponse, err := http.Get(query)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return nil
 	}
 
 	body, err := ioutil.ReadAll(httpResponse.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return nil
 	}
 
-	err = json.Unmarshal(body, &info)
+	err = json.Unmarshal(body, info)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return nil
 	}
 
 	return info
@@ -56,18 +67,12 @@ type DHCPHandler struct {
 }
 
 func (han *DHCPHandler) ServeDHCP(req dhcp.Packet, msg dhcp.MessageType, reqopts dhcp.Options) (d dhcp.Packet) {
+	statsRequests.Inc()
 	reqnic := req.CHAddr().String()
 	log.Println("got", msg, "from", reqnic)
 
 	// initialize a safe and useless reply
-	var reply DHCPResponse
-
-	reply.Packet = req
-	reply.MsgType = dhcp.NAK
-	reply.Server = han.srv
-	reply.ClientIP = nil
-	reply.LeaseDuration = 0
-	reply.Options = nil
+	var reply *DHCPResponse
 
 	switch msg {
 
@@ -89,6 +94,10 @@ func (han *DHCPHandler) ServeDHCP(req dhcp.Packet, msg dhcp.MessageType, reqopts
 		return nil
 	}
 
+	if reply == nil {
+		return nil
+	}
+
 	return dhcp.ReplyPacket(reply.Packet,
 		reply.MsgType,
 		reply.Server,
@@ -96,6 +105,11 @@ func (han *DHCPHandler) ServeDHCP(req dhcp.Packet, msg dhcp.MessageType, reqopts
 		reply.LeaseDuration,
 		reply.Options.SelectOrderOrAll(nil))
 
+}
+
+func init() {
+	// Metrics have to be registered to be exposed:
+	prometheus.MustRegister(statsRequests)
 }
 
 func main() {
@@ -115,6 +129,12 @@ func main() {
 	}
 
 	log.Println("Starting up on", ip, "serving requests from", apiURL)
+
+	// Expose the registered metrics via HTTP.
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Fatal(http.ListenAndServe("0.0.0.0:9000", nil))
+	}()
 
 	handler := &DHCPHandler{
 		srv: ip,
